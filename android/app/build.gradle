@@ -24,8 +24,7 @@ if (flutterVersionName == null) {
 
 android {
     namespace "com.smartalarm.app"
-    compileSdk 36 // تعديل عشان الكاميرا
-    ndkVersion flutter.ndkVersion
+    compileSdk 36
 
     compileOptions {
         coreLibraryDesugaringEnabled true
