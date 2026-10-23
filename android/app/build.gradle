@@ -24,7 +24,7 @@ if (flutterVersionName == null) {
 
 android {
     namespace "com.smartalarm.app"
-    compileSdk 34
+    compileSdk 36 // تعديل عشان الكاميرا
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -43,8 +43,8 @@ android {
 
     defaultConfig {
         applicationId "com.smartalarm.app"
-        minSdkVersion 21
-        targetSdkVersion 34
+        minSdk 21
+        targetSdk 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
