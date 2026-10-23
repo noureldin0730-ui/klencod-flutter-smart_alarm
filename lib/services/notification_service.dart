@@ -1,21 +1,30 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter/foundation.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
 
   static Future<void> init() async {
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    
-    const InitializationSettings initializationSettings =
-        InitializationSettings(android: initializationSettingsAndroid);
+    try {
+      const AndroidInitializationSettings initializationSettingsAndroid =
+          AndroidInitializationSettings('@mipmap/ic_launcher');
+      
+      const InitializationSettings initializationSettings =
+          InitializationSettings(android: initializationSettingsAndroid);
 
-    await _plugin.initialize(initializationSettings);
+      await _plugin.initialize(initializationSettings);
 
-    final androidImpl = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    await androidImpl?.requestNotificationsPermission();
-    await androidImpl?.requestExactAlarmsPermission();
+      final androidImpl = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      
+      // طلب الصلاحيات بحذر
+      if (androidImpl != null) {
+        await androidImpl.requestNotificationsPermission();
+        await androidImpl.requestExactAlarmsPermission();
+      }
+    } catch (e) {
+      debugPrint('Notification init error: $e');
+    }
   }
 
   static Future<void> scheduleAlarm(DateTime dateTime, int id) async {

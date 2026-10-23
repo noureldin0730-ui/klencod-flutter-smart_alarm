@@ -6,8 +6,11 @@ import 'screens/home_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // تهيئة التوقيت
   tz.initializeTimeZones();
-  await NotificationService.init();
+  
+  // تهيئة الإشعارات (بنعملها من غير await عشان لو علقت متمنعش فتح التطبيق)
+  NotificationService.init();
 
   runApp(const MyApp());
 }
