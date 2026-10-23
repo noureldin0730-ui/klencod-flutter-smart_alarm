@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:permission_handler/permission_handler.dart'; // ضفنا دي
 import '../services/notification_service.dart';
 import 'ring_screen.dart';
 
@@ -24,6 +25,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _setAlarm() async {
+    // 1. نتأكد الأول إن إذن المنبه الدقيق متفعّل
+    final status = await Permission.scheduleExactAlarm.status;
+    if (!status.isGranted) {
+      // لو مش متفعّل، بنفتحله إعدادات النظام
+      await openAppSettings();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('رجاءً فعّل صلاحية "المنبهات والتذكيرات" من الإعدادات')),
+        );
+      }
+      return;
+    }
+
+    // 2. ضبط المنبه
     final now = DateTime.now();
     var scheduledDate = DateTime(
       now.year, now.month, now.day, _selectedTime.hour, _selectedTime.minute
@@ -84,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const Padding(
               padding: EdgeInsets.all(16.0),
               child: Text(
-                'الحقوق محفوظة © 2026 ALPHA',
+                'الحقوق محفوظة © 2026 Nour ',
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w300, color: Colors.grey),
               ),
             ),

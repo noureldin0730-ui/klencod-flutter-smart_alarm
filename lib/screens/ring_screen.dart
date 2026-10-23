@@ -1,6 +1,7 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+import 'package:flutter/services.dart';
 import '../services/notification_service.dart';
 
 class RingScreen extends StatefulWidget {
@@ -31,26 +32,30 @@ class _RingScreenState extends State<RingScreen> {
   }
 
   Future<void> _initializeCamera() async {
-    final cameras = await availableCameras();
-    if (cameras.isEmpty) return;
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) return;
 
-    final frontCamera = cameras.firstWhere(
-      (camera) => camera.lensDirection == CameraLensDirection.front,
-      orElse: () => cameras.first,
-    );
+      final frontCamera = cameras.firstWhere(
+        (camera) => camera.lensDirection == CameraLensDirection.front,
+        orElse: () => cameras.first,
+      );
 
-    _cameraController = CameraController(
-      frontCamera,
-      ResolutionPreset.medium,
-      enableAudio: false,
-      imageFormatGroup: ImageFormatGroup.nv21,
-    );
+      _cameraController = CameraController(
+        frontCamera,
+        ResolutionPreset.low, // قللنا الدقة عشان المعالجة تبقى أسرع
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.yuv420, // غيرنا الصيغة عشان تدعم أجهزة أكتر
+      );
 
-    await _cameraController!.initialize();
-    if (!mounted) return;
+      await _cameraController!.initialize();
+      if (!mounted) return;
 
-    setState(() => _isCameraInitialized = true);
-    _cameraController!.startImageStream(_processCameraImage);
+      setState(() => _isCameraInitialized = true);
+      _cameraController!.startImageStream(_processCameraImage);
+    } catch (e) {
+      debugPrint('Camera error: $e');
+    }
   }
 
   Future<void> _processCameraImage(CameraImage image) async {
@@ -65,14 +70,14 @@ class _RingScreenState extends State<RingScreen> {
 
       if (faces.isNotEmpty) {
         _faceFrames++;
-        if (_faceFrames > 15) {
+        if (_faceFrames > 10) { // 10 فريمات كفاية جداً
           _stopAlarm();
         }
       } else {
         _faceFrames = 0;
       }
     } catch (e) {
-      debugPrint('Error: $e');
+      debugPrint('ML Kit error: $e');
     } finally {
       _isProcessing = false;
     }
@@ -81,22 +86,34 @@ class _RingScreenState extends State<RingScreen> {
   InputImage? _inputImageFromCameraImage(CameraImage image) {
     final camera = _cameraController!.description;
     final sensorOrientation = camera.sensorOrientation;
-    
-    if (image.format.group == ImageFormatGroup.nv21) {
-      return InputImage.fromBytes(
-        bytes: image.planes[0].bytes,
-        metadata: InputImageMetadata(
-          size: Size(image.width.toDouble(), image.height.toDouble()),
-          rotation: InputImageRotationValue.fromRawValue(sensorOrientation) ?? InputImageRotation.rotation0deg,
-          format: InputImageFormat.nv21,
-          bytesPerRow: image.planes[0].bytesPerRow,
-        ),
-      );
+    InputImageRotation? rotation;
+
+    if (sensorOrientation == 90) {
+      rotation = InputImageRotation.rotation90deg;
+    } else if (sensorOrientation == 270) {
+      rotation = InputImageRotation.rotation270deg;
+    } else {
+      rotation = InputImageRotation.rotation0deg;
     }
-    return null;
+
+    // تحويل الصورة للصيغة اللي ML Kit بيفهمها
+    final format = InputImageFormatValue.fromRawValue(image.format.raw);
+    if (format == null || image.planes.isEmpty) return null;
+
+    final plane = image.planes.first;
+    return InputImage.fromBytes(
+      bytes: plane.bytes,
+      metadata: InputImageMetadata(
+        size: Size(image.width.toDouble(), image.height.toDouble()),
+        rotation: rotation,
+        format: format,
+        bytesPerRow: plane.bytesPerRow,
+      ),
+    );
   }
 
   void _stopAlarm() async {
+    HapticFeedback.heavyImpact(); // هزة عشان تحس إنه اتقفل
     await NotificationService.cancelAll();
     
     if (_cameraController != null) {
